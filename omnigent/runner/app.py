@@ -2141,28 +2141,14 @@ def _normalize_turn_error(error: Mapping[str, object]) -> dict[str, str]:
 
 def _harness_error_response_error(response: object) -> dict[str, str]:
     """
-    Turn a harness error response into a turn-failure ``error`` dict.
+    Convert a non-streaming harness error response into a turn failure.
 
-    ``_stream_message_to_harness`` reports a setup failure by returning a
-    ``JSONResponse`` shaped ``{"error": <code>, "detail": <text>}`` instead
-    of a stream. Both turn paths relay that failure to stream subscribers
-    through :func:`_on_proxy_stream_end`, so the body is decoded back into
-    the ``{"message"}`` shape :func:`_normalize_turn_error` reads —
-    subscribers then see the same code and detail the direct HTTP caller
-    received rather than a generic placeholder. The message composition
-    mirrors the server's ``_runner_reject_detail``: the runner's code is
-    named in the message, while the wire ``code`` stays the generic
-    setup-failure code the failure card already describes. A body that is
-    absent, undecodable, or not a runner error object degrades to a preview
-    of the raw text, so this never raises.
+    For example, ``{"error": "harness_spawn_failed", "detail": "See runner log"}``
+    becomes ``{"message": "harness_spawn_failed: See runner log"}``. Missing or
+    malformed bodies fall back to a short raw-body preview or a generic message.
 
-    :param response: The non-``StreamingResponse`` returned by
-        ``_stream_message_to_harness``, e.g. a ``JSONResponse`` carrying
-        ``{"error": "harness_spawn_failed", "detail": "Request failed on
-        the runner; ..."}``.
-    :returns: An error dict with a ``message`` key, e.g.
-        ``{"message": "harness_spawn_failed: Request failed on the
-        runner; ..."}``.
+    :param response: Response returned instead of a ``StreamingResponse``.
+    :returns: An error dict suitable for :func:`_on_proxy_stream_end`.
     """
     text = ""
     # A stub response without a body, a body that is not bytes, or bytes
